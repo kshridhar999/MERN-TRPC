@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id              String         @id @default(cuid())
+    name            String
+    email           String         @unique
+    password        String
+    isEmailVerified Boolean        @default(false)
+    createdAt       DateTime       @default(now())
+    updatedAt       DateTime       @updatedAt
+    Verification    Verification[]
+    UserInterest    UserInterest[]
+
+    @@index([id])
+}
+
+model Interest {
+    id           String         @id @default(cuid())
+    name         String
+    createdAt    DateTime       @default(now())
+    updatedAt    DateTime       @default(now())
+    userInterest UserInterest[]
+}
+
+model UserInterest {
+    id         String   @id @default(cuid())
+    interest   Interest @relation(fields: [interestId], references: [id])
+    interestId String
+    user       User     @relation(fields: [userId], references: [id])
+    userId     String
+    isSaved    Boolean  @default(true)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @default(now())
+
+    @@unique([interestId, userId])
+    @@index([id])
+}
+
+model Verification {
+    id        String   @id @default(cuid())
+    type      String   @default("email")
+    token     String
+    user      User     @relation(fields: [userId], references: [id])
+    userId    String
+    expiresAt DateTime
+    createdAt DateTime @default(now())
+}
