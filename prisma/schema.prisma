@@ -34,9 +34,9 @@ model Interest {
 
 model UserInterest {
     id         String   @id @default(cuid())
-    interest   Interest @relation(fields: [interestId], references: [id])
+    interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
     interestId String
-    user       User     @relation(fields: [userId], references: [id])
+    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     userId     String
     isSaved    Boolean  @default(true)
     createdAt  DateTime @default(now())
