@@ -1,58 +1,61 @@
-
 import { z } from "zod";
 import { getAllInterestsSchema } from "~/input_types";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
 export const interestRouter = createTRPCRouter({
   toggleInterest: protectedProcedure
-    .input(z.object({ interestId: z.string()}))
-    .mutation(async ({ctx, input }) => {
-      const user = ctx.session.user;
-
-      if(!user){
-        throw new Error("Please login to save interest");
-      }
+    .input(
+      z.object({ interestId: z.string(), isSaved: z.boolean().optional() }),
+    )
+    .mutation(async ({ ctx, input }) => {
       await ctx.db.userInterest.upsert({
         create: {
-          userId: user.id,
+          userId: ctx.session.userId,
           interestId: input.interestId,
         },
         update: {
-          isSaved: false
+          isSaved: input.isSaved ?? false,
         },
         where: {
-          interestId_userId: {userId: user.id, interestId: input.interestId}
-        }
-      })
+          interestId_userId: {
+            userId: ctx.session.userId,
+            interestId: input.interestId,
+          },
+        },
+      });
     }),
-    getAllInterests: protectedProcedure
+  getAllInterests: protectedProcedure
     .input(getAllInterestsSchema)
     .query(async ({ ctx, input }) => {
-      const user = ctx.session.user
+      const page = input.pagination?.page ?? 0;
+      const limit = input.pagination?.limit ?? 6;
 
-      if(!user){
-        throw new Error("Please login to get all saved interests")
-      }
-      
-      const page = input.pagination?.page ?? 1
-      const limit = input.pagination?.limit?? 6
+      const [interests, total] = await Promise.all([
+        ctx.db.interest.findMany({
+          select: {
+            id: true,
+            name: true,
+            userInterest: true,
+          },
+          take: limit,
+          skip: page * limit,
+        }),
+        ctx.db.interest.count(),
+      ]);
 
-      const [interests, total] = await Promise.all([ctx.db.interest.findMany({
-        select: {
-          id: true,
-          name: true,
-          userInterest: true
+      return {
+        data: interests.map((interest) => ({
+          id: interest.id,
+          name: interest.name,
+          isSaved:
+            interest.userInterest.length !== 0 &&
+            interest.userInterest.find(
+              (userInt) => userInt.userId === ctx.session.userId,
+            )?.isSaved,
+        })),
+        paginationData: {
+          total: total,
         },
-        take: limit,
-        skip: page*limit
-      }), ctx.db.interest.count()])
-
-      return {data: interests.map(interest => ({
-        id: interest.id,
-        name: interest.name,
-        isSaved: interest.userInterest.length !== 0 && interest.userInterest.find((userInt)=> userInt.userId === user.id)?.isSaved
-      })), paginationData: {
-        total: total,
-      }}
+      };
     }),
 });

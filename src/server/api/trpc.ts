@@ -27,38 +27,9 @@ import { db } from "~/server/db";
  * @see https://trpc.io/docs/server/context
  */
 
-type Session = {
-  user?: SessionUser
-}
-
-type SessionUser = {
-  id: string,
-  email: string,
-  name: string
-}
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-  let session :Session = {}
-
-  const cookie = cookies().get("sid")?.value
-  if(cookie){
-    const tokenData = jwt.verify(cookie, process.env.JWT_SECRET ?? "SECRET") as jwt.JwtPayload
-  
-    const user = await db.user.findFirst({
-      where: {
-        id: tokenData.userId as string,
-      }
-    })
-    if(user?.id) {
-      session =  {
-        ...session,
-        user: user || {}
-      }
-    }
-  }
-  
   return {
     db,
-    session,
     ...opts,
   };
 };
@@ -112,17 +83,58 @@ export const createTRPCRouter = t.router;
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
-export const publicProcedure = t.procedure;
 
-export const protectedProcedure = t.procedure.use((opts)=> {
-  const userExists = (opts.ctx.session).user
+interface PublicSession {
+  sessionUserId?: string;
+}
 
-  if(!userExists){
-    throw new TRPCError({ code: 'UNAUTHORIZED' })
+interface Session {
+  userId: string;
+}
+
+const isAuthedPublic = t.middleware(async ({ ctx, next }) => {
+  const session: PublicSession = {};
+  const cookie = cookies().get("sid")?.value;
+  if (cookie) {
+    const tokenData = jwt.verify(
+      cookie,
+      process.env.JWT_SECRET ?? "SECRET",
+    ) as jwt.JwtPayload;
+
+    const user = await ctx.db.user.findFirst({
+      where: {
+        id: tokenData.userId as string,
+      },
+    });
+
+    if (user) {
+      session.sessionUserId = user.id;
+    }
   }
-  return opts.next({
-    ctx: {
-      user: userExists,
+
+  return next({ ctx: { ...ctx, session } });
+});
+
+const isAuthed = t.middleware(async ({ ctx, next }) => {
+  const cookie = cookies().get("sid")?.value;
+  if (!cookie) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+  const tokenData = jwt.verify(
+    cookie,
+    process.env.JWT_SECRET ?? "SECRET",
+  ) as jwt.JwtPayload;
+
+  const user = await ctx.db.user.findFirst({
+    where: {
+      id: tokenData.userId as string,
     },
   });
-})
+  if (!user) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+  const session: Session = { userId: user.id };
+  return next({ ctx: { ...ctx, session } });
+});
+
+export const publicProcedure = t.procedure.use(isAuthedPublic);
+
+export const protectedProcedure = t.procedure.use(isAuthed);

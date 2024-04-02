@@ -10,7 +10,7 @@ export default function SignIn() {
         <div className="text-sm">The next gen business marketplace</div>
         <SignInForm></SignInForm>
 
-        <div className="font-light text-sm mt-8">Don{`'`}t have an account? <span className="ml-2 font-medium"><Link href="/sign_up">Sign Up</Link></span></div>
+        <div className="font-light text-sm mt-8">Don{`'`}t have an account? <span className="ml-2 font-medium hover:underline"><Link href="/sign_up">Sign Up</Link></span></div>
       </div>
     </div>
   );

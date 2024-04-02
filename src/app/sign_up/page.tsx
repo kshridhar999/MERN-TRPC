@@ -8,7 +8,7 @@ export default function SignUp() {
                 <div className="mb-4 text-2xl font-extrabold">Create new account</div>
                 <SignUpForm></SignUpForm>
 
-                <div className="font-light text-sm mt-8">Have an account? <span className="ml-2 font-medium"><Link href="/sign_in">Login</Link></span></div>
+                <div className="font-light text-sm mt-8">Have an account? <span className="ml-2 font-medium hover:underline"><Link href="/sign_in">Login</Link></span></div>
             </div>
         </div>
     );

@@ -1,17 +1,18 @@
-"use client"
-import { useSearchParams } from "next/navigation";
 import VerifyEmailForm from "./verifyEmailForm";
-import { api } from "~/trpc/react";
+import { api } from "~/trpc/server";
+import { type ReadonlyURLSearchParams } from "next/navigation";
 
-export default function VerifyEmail() {
-    const sParams = useSearchParams()
-    const userId = sParams.get("id")
-    if (!userId) {
+export default async function VerifyEmail({ searchParams }: { searchParams?: Record<string, string | undefined> }) {
+    const userId = searchParams?.id
+    const verfId = searchParams?.vid
+
+    if (!(userId ?? verfId)) {
         return
     }
 
-    const userFunc = api.user.getUserLead.useQuery({
-        id: userId,
+    const userFunc = await api.user.getUserLead({
+        id: userId!,
+        vid: verfId ?? undefined
     })
 
     return (
@@ -20,10 +21,10 @@ export default function VerifyEmail() {
                 <div className="mb-4 text-2xl font-extrabold">Verify your email</div>
                 <div className="text-sm">
                     Enter the 8 digit code you have received on
-                    <span className="font-medium"> {userFunc.data?.email ?? "..."}</span>
+                    <span className="font-medium"> {userFunc.email}</span>
                 </div>
 
-                <VerifyEmailForm id={userFunc.data?.id}></VerifyEmailForm>
+                <VerifyEmailForm id={userFunc.id}></VerifyEmailForm>
             </div>
         </div>
     );

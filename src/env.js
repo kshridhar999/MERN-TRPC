@@ -12,11 +12,15 @@ export const env = createEnv({
       .url()
       .refine(
         (str) => !str.includes("YOUR_MYSQL_URL_HERE"),
-        "You forgot to change the default URL"
+        "You forgot to change the default URL",
       ),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    EMAILER_PUBLIC_KEY: z.string(),
+    EMAILER_PRIVATE_KEY: z.string(),
+    EMAILER_SERVICE_ID: z.string(),
+    EMAILER_VERIFICATION_TEMPLATE_ID: z.string(),
   },
 
   /**
@@ -35,6 +39,11 @@ export const env = createEnv({
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    EMAILER_PUBLIC_KEY: process.env.EMAILER_PUBLIC_KEY,
+    EMAILER_PRIVATE_KEY: process.env.EMAILER_PRIVATE_KEY,
+    EMAILER_SERVICE_ID: process.env.EMAILER_SERVICE_ID,
+    EMAILER_VERIFICATION_TEMPLATE_ID:
+      process.env.EMAILER_VERIFICATION_TEMPLATE_ID,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**

@@ -2,33 +2,36 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { useFormStatus } from "react-dom"
 import { signInSchema } from "~/input_types"
-import { api } from "~/trpc/react"
+import onSignIn from "./handleSignIn"
+import Button from "../_components/button"
 
+const SignInButton = () => {
+    const { pending } = useFormStatus()
+    return (
+        <Button className="mt-4 w-full bg-secondary-dark text-white p-2 rounded-md hover:bg-secondary-dark-hover" disabled={pending}>
+            {!pending ? "Login" : "Logging In..."}
+        </Button>
+    )
+}
 export default function SignInForm() {
     const router = useRouter()
     const [showPassword, setShowPassword] = useState(false)
 
-    const authFunc = api.auth.signIn.useMutation({
-        onSuccess: (data) => {
-            if (!data?.isEmailVerified) {
-                router.push('/verify_email')
-            } else {
-                router.push("/")
-            }
-        },
-        onError: (err) => {
-            console.log(err.message)
-        }
-    })
-
-    const handleSignIn = (formData: FormData) => {
+    const handleSignIn = async (formData: FormData) => {
         const validated = signInSchema.safeParse(Object.fromEntries(formData.entries()))
         if (!validated.success) {
             console.log(validated.error.issues.join("\n"))
             return
         }
-        authFunc.mutate(validated.data)
+        const res = await onSignIn(formData)
+
+        if (res.isEmailVerified) {
+            router.push('/')
+        } else {
+            router.push(`/verify_email?id=${res.id}`)
+        }
     }
 
     return (
@@ -60,9 +63,7 @@ export default function SignInForm() {
                     </button>
                 </div>
             </div>
-            <button className="mt-4 w-full bg-black text-white p-2 rounded-md hover:bg-gray-900 transition-colors" disabled={authFunc.isPending}>
-                {!authFunc.isPending ? "Login" : "Logging In..."}
-            </button>
+            <SignInButton></SignInButton>
             <line className='h-[0.5px] bg-[#c1c1c1] w-full' />
         </form >
     )

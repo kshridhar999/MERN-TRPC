@@ -2,14 +2,25 @@
 
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react"
+import { useFormStatus } from "react-dom"
 import { verifyEmailSchema } from "~/input_types"
-import { api } from "~/trpc/react"
+import onVerify from "./handleVerify"
+import Button from "../_components/button"
 
+const VerifyButton = () => {
+    const { pending } = useFormStatus()
+    return (
+        <Button className="mt-4 w-full bg-secondary-dark text-white hover:bg-secondary-dark-hover" disabled={pending}>
+            {!pending ? "Verify" : "Verifying..."}
+        </Button>
+    )
+}
 let currentCodeIndex = 0
-export default function VerifyEmailForm({ id }: { id: string | undefined }) {
+export default function VerifyEmailForm({ id }: { id: string }) {
     const router = useRouter()
     const [verfCode, setVerfCode] = useState<(string | number)[]>(new Array(8).fill(""));
     const [currentFocusedIndex, setCurrentFocusedIndex] = useState(0);
+
     const inputRef = useRef<HTMLInputElement>(null);
 
     const handleVerfCodeChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -30,30 +41,27 @@ export default function VerifyEmailForm({ id }: { id: string | undefined }) {
         }
     }
 
-    const authFunc = api.auth.verifyEmail.useMutation({
-        onSuccess: () => {
-            router.push("/")
-        },
-        onError: (err) => {
-            console.log(err.message)
-        }
-    })
-
-    const handleSignUp = (formData: FormData) => {
+    const handleSignUp = async (formData: FormData) => {
         const formValueObj = Object.fromEntries(formData.entries()) as { id: string, token: string }
         formValueObj.token = verfCode.join('')
 
         const validated = verifyEmailSchema.safeParse(formValueObj)
         if (!validated.success) {
-            console.log(validated.error.issues.join("\n"))
+            console.log(validated.error.issues.flatMap(e => e.path[0] + ": " + e.message))
             return
         }
-        authFunc.mutate(validated.data)
+
+        const res = await onVerify(validated.data)
+
+        if (res.isEmailVerified) {
+            router.push('/')
+        }
     }
 
     useEffect(() => {
         inputRef.current?.focus()
     }, [currentFocusedIndex])
+
     return (
         <form className="flex flex-col gap-6 mt-8 w-4/5" action={handleSignUp}>
             <input
@@ -67,7 +75,7 @@ export default function VerifyEmailForm({ id }: { id: string | undefined }) {
                     Code
                 </label>
                 <div className="flex justify-between">
-                    {verfCode.map((value: string | number, index: number) => (
+                    {verfCode.map((_, index: number) => (
                         <input
                             key={`index-${index}`}
                             ref={index === currentFocusedIndex ? inputRef : null}
@@ -83,9 +91,7 @@ export default function VerifyEmailForm({ id }: { id: string | undefined }) {
                     ))}
                 </div>
             </div>
-            <button className="mt-4 w-full bg-black text-white p-2 rounded-md hover:bg-gray-900 transition-colors" disabled={authFunc.isPending}>
-                {!authFunc.isPending ? "Verify" : "Verifying..."}
-            </button>
+            <VerifyButton></VerifyButton>
         </form >
     )
 }
