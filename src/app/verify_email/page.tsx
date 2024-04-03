@@ -1,6 +1,5 @@
-import VerifyEmailForm from "./verifyEmailForm";
 import { api } from "~/trpc/server";
-import { type ReadonlyURLSearchParams } from "next/navigation";
+import VerifyEmailForm from "./verifyEmailForm";
 
 export default async function VerifyEmail({ searchParams }: { searchParams?: Record<string, string | undefined> }) {
     const userId = searchParams?.id

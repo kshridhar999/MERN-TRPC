@@ -11,16 +11,20 @@ export default async function onSignIn(formData: FormData) {
   if (!validated.success) {
     return { error: validated.error.issues.join("\n") };
   }
-  const res = await api.auth.signIn(validated.data);
+  try {
+    const res = await api.auth.signIn(validated.data);
 
-  if (res.token) {
-    cookies().set("sid", res.token, {
-      httpOnly: true,
-      secure: true,
-      maxAge: 60 * 60 * 24 * 365,
-    });
-    return { isEmailVerified: true };
+    if (res.token) {
+      cookies().set("sid", res.token, {
+        httpOnly: true,
+        secure: true,
+        maxAge: 60 * 60 * 24 * 365,
+      });
+      return { isEmailVerified: true };
+    }
+
+    return { isEmailVerified: false, id: res.id };
+  } catch (e) {
+    return { error: e };
   }
-
-  return { isEmailVerified: false, id: res.id };
 }

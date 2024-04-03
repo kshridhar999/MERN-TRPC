@@ -58,7 +58,7 @@ export default function InterestList({ initialList }: { initialList: Awaited<Ret
 
     useEffect(() => {
         setPagesToShow(getPagesToShow(totalPages, currentPage))
-    }, [currentPage])
+    }, [totalPages, currentPage])
 
     const ShowComponent = () => {
         if (interestQuery.isFetching) {

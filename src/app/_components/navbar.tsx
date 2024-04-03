@@ -1,20 +1,25 @@
-import Image from "next/image"
 import Link from "next/link"
-import Button from "./button"
+import { type appRouter } from "~/server/api/root"
 import { api } from "~/trpc/server"
+import Button from "./button"
 
 const navlinks = [
-    { key: "categories", label: "Categories", href: "/categories" },
-    { key: "sale", label: "Sale", href: "/sale" },
-    { key: "clearance", label: "Clearance", href: "/clearance" },
-    { key: "new_stock", label: "New Stock", href: "/new_stock" },
-    { key: "trending", label: "Trending", href: "/trending" },
+    { key: "categories", label: "Categories", href: "" },
+    { key: "sale", label: "Sale", href: "" },
+    { key: "clearance", label: "Clearance", href: "" },
+    { key: "new_stock", label: "New Stock", href: "" },
+    { key: "trending", label: "Trending", href: "" },
 ] as const
 
+type User = Awaited<ReturnType<typeof appRouter["user"]["getUser"]>>
+
 export default async function Navbar() {
-    const session = await api.user.getUser()
+    const session = await api.user.isAuthorized()
 
-
+    let sessionUser: User = { user: null }
+    if (session.isAuthorized) {
+        sessionUser = await api.user.getUser()
+    }
     return (
         <nav>
             <div className="flex justify-end gap-x-2 mt-2 pr-4">
@@ -25,8 +30,8 @@ export default async function Navbar() {
                     Orders & Returns
                 </Link>
                 {
-                    session.user?.name && <div className="text-xs font-light">
-                        Hi, {session.user.name}
+                    sessionUser.user?.name && <div className="text-xs font-light">
+                        Hi, {sessionUser.user.name}
                     </div>
                 }
 

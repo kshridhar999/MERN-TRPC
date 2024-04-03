@@ -8,39 +8,53 @@ import {
 } from "~/input_types";
 import emailjs from "../../email";
 
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import { env } from "~/env";
-import { z } from "zod";
 import { EmailJSResponseStatus } from "@emailjs/nodejs";
+import { env } from "~/env";
+import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 
 export const authRouter = createTRPCRouter({
   signUp: publicProcedure
     .input(signUpSchema)
     .mutation(async ({ ctx, input }) => {
       const pwdHash = await argon2.hash(input.password);
-      const user = await ctx.db.user.upsert({
-        create: {
-          name: input.name,
-          email: input.email,
-          password: pwdHash,
-        },
-        update: {},
-        where: {
-          email: input.email,
-        },
-      });
+      let user;
+      try {
+        user = await ctx.db.user.create({
+          data: {
+            name: input.name,
+            email: input.email,
+            password: pwdHash,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        });
+      } catch (e) {
+        throw e;
+      }
+
       const cur = new Date();
       const tokenExpiry = new Date(cur.setHours(cur.getHours() + 2));
       const verfToken = (
         Math.floor(Math.random() * 90000000) + 10000000
       ).toString();
-      const verf = await ctx.db.verification.create({
-        data: {
-          token: verfToken,
-          userId: user.id,
-          expiresAt: tokenExpiry,
-        },
-      });
+      let verf;
+      try {
+        verf = await ctx.db.verification.create({
+          data: {
+            token: verfToken,
+            userId: user.id,
+            expiresAt: tokenExpiry,
+          },
+          select: {
+            id: true,
+          },
+        });
+      } catch (e) {
+        throw e;
+      }
 
       const templateParams = {
         service: "Mern Trpc Project",
@@ -68,11 +82,21 @@ export const authRouter = createTRPCRouter({
   signIn: publicProcedure
     .input(signInSchema)
     .mutation(async ({ ctx, input }) => {
-      const user = await ctx.db.user.findFirst({
-        where: {
-          email: input.email,
-        },
-      });
+      let user;
+      try {
+        user = await ctx.db.user.findFirst({
+          where: {
+            email: input.email,
+          },
+          select: {
+            id: true,
+            password: true,
+            isEmailVerified: true,
+          },
+        });
+      } catch (e) {
+        throw e;
+      }
       if (!user) {
         throw new Error("Invalid username/password");
       }
@@ -105,6 +129,10 @@ export const authRouter = createTRPCRouter({
         },
         orderBy: {
           createdAt: "desc",
+        },
+        select: {
+          token: true,
+          expiresAt: true,
         },
       });
 
@@ -150,6 +178,9 @@ export const authRouter = createTRPCRouter({
           orderBy: {
             createdAt: "desc",
           },
+          select: {
+            createdAt: true,
+          },
         }),
         ctx.db.user.findFirst({
           where: {
@@ -176,6 +207,9 @@ export const authRouter = createTRPCRouter({
             token: verfToken,
             userId: user.id,
             expiresAt: tokenExpiry,
+          },
+          select: {
+            id: true,
           },
         });
         const templateParams = {
@@ -214,6 +248,9 @@ export const authRouter = createTRPCRouter({
           token: verfToken,
           userId: user.id,
           expiresAt: tokenExpiry,
+        },
+        select: {
+          id: true,
         },
       });
 

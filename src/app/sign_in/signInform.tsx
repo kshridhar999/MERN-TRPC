@@ -27,6 +27,11 @@ export default function SignInForm() {
         }
         const res = await onSignIn(formData)
 
+        if (res.error) {
+            console.log(res.error)
+            return
+        }
+
         if (res.isEmailVerified) {
             router.push('/')
         } else {
