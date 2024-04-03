@@ -1,15 +1,17 @@
 
 "use client"
 
-import { useState, type ChangeEvent, useEffect } from "react"
+import { useEffect, useState, type ChangeEvent } from "react"
 import { type appRouter } from "~/server/api/root"
 import { api } from "~/trpc/react"
+
+
 const paginationLimit = 6
 const getPagesToShow = (totalPages: number, currentPage = 0): number[] => {
     const pagesToShow: number[] = []
 
     const firstPageToShow = currentPage >= 6 ? currentPage - 5 : 1
-    const lastPageToShow = currentPage <= 6 ? 7 : currentPage + 1
+    const lastPageToShow = currentPage <= 6 ? Math.min(7, totalPages) : currentPage + 1
     for (let i = firstPageToShow; i <= lastPageToShow; i++) {
         pagesToShow.push(i)
     }
@@ -17,11 +19,13 @@ const getPagesToShow = (totalPages: number, currentPage = 0): number[] => {
     return pagesToShow
 }
 
+
 export default function InterestList({ initialList }: { initialList: Awaited<ReturnType<typeof appRouter["interest"]["getAllInterests"]>> }) {
     const initalTotalPages = Math.ceil(initialList.paginationData.total / paginationLimit)
 
     const [pagesToShow, setPagesToShow] = useState<number[]>(getPagesToShow(initalTotalPages))
     const [currentPage, setCurrentPage] = useState(0)
+    const [optimisticInterests, setOptimisticInterests] = useState(initialList.data)
 
     const interestQuery = api.interest.getAllInterests.useQuery({
         pagination: {
@@ -35,8 +39,24 @@ export default function InterestList({ initialList }: { initialList: Awaited<Ret
         refetchOnWindowFocus: false
     })
 
+    const interests = interestQuery.data.data
+    const paginationData = interestQuery.data.paginationData
+
+    const totalPages = Math.ceil(paginationData.total / paginationLimit)
+
+
     const toggleInterest = api.interest.toggleInterest.useMutation({
-        onSettled: async () => {
+        onMutate: (data) => {
+            setOptimisticInterests((prev) => {
+                return prev.map((int) => {
+                    if (int.id === data.interestId) {
+                        int.isSaved = data.isSaved
+                    }
+                    return int
+                })
+            })
+        },
+        onError: async () => {
             await interestQuery.refetch()
         }
     })
@@ -50,11 +70,9 @@ export default function InterestList({ initialList }: { initialList: Awaited<Ret
         }
     }
 
-
-    const interests = interestQuery.data.data
-    const paginationData = interestQuery.data.paginationData
-
-    const totalPages = Math.ceil(paginationData.total / paginationLimit)
+    useEffect(() => {
+        setOptimisticInterests(interests)
+    }, [interests])
 
     useEffect(() => {
         setPagesToShow(getPagesToShow(totalPages, currentPage))
@@ -76,13 +94,13 @@ export default function InterestList({ initialList }: { initialList: Awaited<Ret
                 }
             </ul>
         }
-        if (interests.length === 0) {
+        if (optimisticInterests.length === 0) {
             return <div>No interests found.</div>
         }
         return (
             <ul className="flex flex-col gap-y-2 mt-4">
                 {
-                    interests.map((inter) => {
+                    optimisticInterests.map((inter) => {
                         return <li key={inter.id} className="flex gap-x-4 items-center">
                             <input
                                 type="checkbox"
@@ -121,7 +139,7 @@ export default function InterestList({ initialList }: { initialList: Awaited<Ret
                 <div className="flex gap-x-2 items-center">
                     {currentPage > 6 && <p>...</p>}
                     {pagesToShow.map((page, index) => {
-                        return <button key={index} onClick={() => setCurrentPage(page)} className={`${page === currentPage + 1 ? "text-black" : "text-gray-400"}`}>{page}</button>
+                        return <button key={index} onClick={() => setCurrentPage(page - 1)} className={`${page === currentPage + 1 ? "text-black" : "text-gray-400"}`}>{page}</button>
                     })}
                     {currentPage + 1 < totalPages && <p>...</p>}
                 </div>
